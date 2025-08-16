@@ -1,0 +1,307 @@
+#include <stdio.h>
+#include <xc.h>
+#define XTAL_FREQ 20000000
+
+#define RS PORTBbits.RB1
+#define RW PORTBits.RB0
+#define EN PORTBits.RB2
+
+//rtc macros fords1307
+#define DS1307_address 0xD0
+#define second         0x00
+#define minute         0x01
+#define hour           0x02
+#define day             0x03
+#define date           0x04
+#define month          0x05
+#define year           0x06
+#define control_reg    0x07
+// CONFIG
+#pragma config FOSC = HS        // Oscillator Selection bits (HS oscillator)
+#pragma config WDTE = OFF       // Watchdog Timer Enable bit (WDT disabled)
+#pragma config PWRTE = OFF      // Power-up Timer Enable bit (PWRT disabled)
+#pragma config BOREN = ON       // Brown-out Reset Enable bit (BOR enabled)
+#pragma config LVP = ON         // Low-Voltage (Single-Supply) In-Circuit Serial Programming Enable bit (RB3/PGM pin has PGM function; low-voltage programming enabled)
+#pragma config CPD = OFF        // Data EEPROM Memory Code Protection bit (Data EEPROM code protection off)
+#pragma config WRT = OFF        // Flash Program Memory Write Enable bits (Write protection off; all program memory may be written to by EECON control)
+#pragma config CP = OFF         // Flash Program Memory Code Protection bit (Code protection off)
+
+
+
+void DS1307_write(char sec, char min, char hr, char _day,char _date,char _month,char _year);
+void DS1307_read(char slave_adderss, char register_address);
+    
+void delay(unsigned int Delay);
+    
+void bcd_to_ascii(unsigned char value);
+char decimal_to_bcd(unsigned char value);
+    
+void lcd_cmd(unsigned char cmd);
+void lcd_data(unsigned char data);
+void lcd_Init();
+void lcd_word(const unsigned char *words);
+    
+unsigned char __sec,__min,__hr,__day,__month,__yr,__con;
+void main(void)
+{
+        TRISC = 0xFF;
+        
+        SSPADD = 49;
+        SSPCON = 0x28;
+        
+        TRISD = 0x00;
+        PORTD = 0x00;
+        TRISB = 0x00;
+        PORTB = 0x00;
+        lcd_init();
+        
+        lcd_cmd(0x80);
+        lcd_word("CLOCK:");
+        lcd_cmd(0xC0);
+        lcd_word("DATE:");
+        DS1307_write(3,2,1,1,5,4,20);
+        __delay_ms(300);
+        
+        while(1)
+        {
+            __delay_ms(20);
+            DS1307_read(DS1307_address,0);
+        }
+        return;
+}
+    void bcd_to_ascii(unsigned char value)
+    {
+        unsigned char bcd;
+        bcd = value;
+        bcd = bcd&0xf0;
+        bcd = bcd>>4;
+        bcd = bcd | 0x30;
+        lcd_data(bcd);
+        bcd = value;
+        bcd = bcd& 0x0f;
+        bcd = bcd |0x30;
+        lcd_data(bcd);
+    }
+    
+    char decimal_to_bcd(unsigned char value)
+    {
+        unsigned char msb,lsb,hex;
+        msb = value/10;
+        lsb= value%10;
+        hex = ((msb<<4)+lsb);
+        return hex;
+    }
+    
+    void void DS1307_write(char _second, char _minute, char _hour,c har _day,char _date,char _month,char _year)
+    {
+        /*start bit*/
+        SSPCON2bits.SEN = 1;               //initiate start condition
+        while(SSPCON2bits.SEN);           //wait for start condition to 
+        PIR1bits.SSPIF = 0;              //clear SSPIF flag
+        
+        //slave address bits -0xD0
+        SSPBUF = DS1307_address; //send the slave address high and r/w = 0 for write
+        while(!SSPIF);          //wait for acknowledge SSPIF is set for every 9th clock cycle
+        PIR1bits.SSPIF = 0;     //clear SSPIF flag
+        if(SSPCON2bits.ACKSTAT)
+        {
+            SSPCON2bits.PEN = 1;//initiate stop condition
+            while(PEN);         //wait for stop condition to complete
+            return;             //exit write( no acknowledgment)
+        }
+        
+        //00h address
+        SSPBUF = second; //send the slave address high and r/w = 0 for write
+        while(!SSPIF);  //wait for acknowledge SSPIF is set for every 9th clock cycle
+        PIR1bits.SSPIF = 0;//clear SSPIF flag
+        if(SSPCON2bits.ACKSTAT)
+        {
+            SSPCON2bits.PEN = 1;//initiate stop condition
+            while(PEN);         //wait for stop condition to complete
+            return;             //exit write(no acknowledgement)
+        }
+        
+        SSPBUF = decimal_to_bcd(_second); //send the data
+        while(!SSPIF);                    //wait for acknowledge SSPIF is set for every 9th clock cycle
+        PIR1bits.SSPIF = 0;               //clear SSPIF flag
+        
+        SSPBUF = decimal_to_bcd(_minute); //send the data
+        while(!SSPIF);                    //wait for acknowledge SSPIF is set for every 9th clock cycle
+        PIR1bits.SSPIF = 0;               //clear SSPIF flag
+        
+        SSPBUF = decimal_to_bcd(_hour);   //send the data
+        while(!SSPIF);                    //wait for acknowledge SSPIF is set for every 9th clock cycle
+        PIR1bits.SSPIF = 0;               //clear SSPIF flag
+        
+        SSPBUF = decimal_to_bcd(_day);    //send the data  
+        while(!SSPIF);                    //wait for acknowledge SSPIF is set for every 9th clock cycle
+        PIR1bits.SSPIF = 0;               //clear SSPIF flag
+                
+        SSPBUF = decimal_to_bcd(_day);    //send the data  
+        while(!SSPIF);                    //wait for acknowledge SSPIF is set for every 9th clock cycle
+        PIR1bits.SSPIF = 0;               //clear SSPIF flag
+        
+        SSPBUF = decimal_to_bcd(_date);    //send the data  
+        while(!SSPIF);                    //wait for acknowledge SSPIF is set for every 9th clock cycle
+        PIR1bits.SSPIF = 0;               //clear SSPIF flag
+        
+        SSPBUF = decimal_to_bcd(_month);    //send the data  
+        while(!SSPIF);                    //wait for acknowledge SSPIF is set for every 9th clock cycle
+        PIR1bits.SSPIF = 0;               //clear SSPIF flag
+        
+        SSPBUF = decimal_to_bcd(_year);    //send the data  
+        while(!SSPIF);                    //wait for acknowledge SSPIF is set for every 9th clock cycle
+        PIR1bits.SSPIF = 0;               //clear SSPIF flag
+        
+        SSPBUF = 0x00 //send the data
+        while(!SSPIF); //wait for acknowledge SSPIF is set for every 9th clock cycle
+        PIR1bits.SSPIF = 0; //clear SSPIF flag
+        
+        /*stop bits*/
+        SSPCON2bits.PEN = 1;//initiate stop condition
+        while(PEN);         //wait for stop condition to complete
+        
+    }
+    
+        void DS1307_read(char slave_address, char register_address)
+      {
+            /*start bit*/
+            SSPCON2bits.SEN = 1;//initiate start condition
+            while(SEN);         //wait for start condition to complete
+            PIR1bits.SSPIF = 0; //clear SSPIF flag
+            
+            /*slave address bits*/
+            SSPBUF = slave_address; //send the slave address high and r/w = 0
+            while(!SSPIF);          //wait for acknowledge SSPIF is set for every 9th clcock cycle
+            PIR1bits.SSPIF = 0;
+            if(SSPCON2bits.ACKSTAT)
+            {
+                SSPCON2bits.PEN = 1;//initiate stop condition
+                while(PEN);         //wait for stop condition to complete
+                return;
+            }
+            
+            /*register address bits*/
+            SSPBUF = register_address; //send the slave address high and r/w = 0
+            while(!SSPIF);          //wait for acknowledge SSPIF is set for every 9th clcock cycle
+            PIR1bits.SSPIF = 0;
+            if(SSPCON2bits.ACKSTAT)
+            {
+                SSPCON2bits.PEN = 1;//initiate stop condition
+                while(PEN);         //wait for stop condition to complete
+                return;
+            }
+            
+            /*repeated start bit*/
+            SSPCON2bits.RSEN = 1;  //initiate start condition
+            while(RSEN);            //wait for start condition to complete
+            PIR1bits.SSPIF = 0;    //clear SSPIF flag
+            
+            
+            /*slave address bits*/
+            SSPBUF = (slave_address + 1);//send the slave address high and r/w = 1 bit
+            while(!SSPIF);               //wait for acknowledge SSPIF is set for every 9th clock cycle
+            PIR1bita.SSPIF = 0;          //clear SSPIF flag
+            if(SSPCON2bits.ACKSTAT)
+            {
+                SSPCON2bits.PEN = 1; //initiate stop condition
+                while(PEN);          //wait for BUFFER to be FULL
+                return;              //exitwrite
+            }
+            
+            /*Receive enable bit*/
+            SSPCON2bits.RCEN = 1; //initiate receive enable
+            while(!SSPSTATbits.BF);
+            _sec = SSPBUF;
+            
+            SSPCON2bits.ACKDT = 0;//PRepare to send NACK
+            SSPCON2bits.ACKEN = 1;//Initiate to send NACK
+            while(ACKEN);
+            
+            /*Receive enable bit*/
+            SSPCON2bits.RCEN = 1; //initiate receive enable 
+            while(!SSPSTATbits.BF);//wait for BUFFER to be full
+            _min = SSPBUF; //clear SSPIF flag
+            
+            SSPCON2bits.ACKDT = 0;//PRepare to send NACK
+            SSPCON2bits.ACKEN = 1;//Initiate to send NACK
+            while(ACKEN);
+            
+             /*Receive enable bit*/
+            SSPCON2bits.RCEN = 1; //initiate receive enable
+            while(!SSPSTATbits.BF);
+            _hr = SSPBUF;
+            
+            SSPCON2bits.ACKDT = 0;//PRepare to send NACK
+            SSPCON2bits.ACKEN = 1;//Initiate to send NACK
+            while(ACKEN);
+            
+            /*Receive enable bit*/
+            SSPCON2bits.RCEN = 1; //initiate receive enable 
+            while(!SSPSTATbits.BF);//wait for BUFFER to be full
+            _day = SSPBUF; //clear SSPIF flag
+            
+            SSPCON2bits.ACKDT = 0;//PRepare to send NACK
+            SSPCON2bits.ACKEN = 1;//Initiate to send NACK
+            while(ACKEN);
+            
+            /*Receive enable bit*/
+            SSPCON2bits.RCEN = 1; //initiate receive enable 
+            while(!SSPSTATbits.BF);//wait for BUFFER to be full
+            _date = SSPBUF; //clear SSPIF flag
+            
+            SSPCON2bits.ACKDT = 0;//PRepare to send NACK
+            SSPCON2bits.ACKEN = 1;//Initiate to send NACK
+            while(ACKEN);
+
+            /*Receive enable bit*/
+            SSPCON2bits.RCEN = 1; //initiate receive enable 
+            while(!SSPSTATbits.BF);//wait for BUFFER to be full
+            _month = SSPBUF; //clear SSPIF flag
+            
+            SSPCON2bits.ACKDT = 0;//PRepare to send NACK
+            SSPCON2bits.ACKEN = 1;//Initiate to send NACK
+            while(ACKEN);     
+            
+            /*Receive enable bit*/
+            SSPCON2bits.RCEN = 1; //initiate receive enable 
+            while(!SSPSTATbits.BF);//wait for BUFFER to be full
+            _yr = SSPBUF; //clear SSPIF flag
+            
+            SSPCON2bits.ACKDT = 0;//PRepare to send NACK
+            SSPCON2bits.ACKEN = 1;//Initiate to send NACK
+            while(ACKEN);
+            
+            //configuration register value
+            SSPCON2bits.RCEN = 1; //initiate receive enable 
+            while(!SSPSTATbits.BF);//wait for BUFFER to be full
+            _con = SSPBUF; //clear SSPIF flag
+            
+            SSPCON2bits.ACKDT = 0;//PRepare to send NACK
+            SSPCON2bits.ACKEN = 1;//Initiate to send NACK
+            while(ACKEN);             
+            
+            /*stop bits*/
+            SSPCON2bits.PEN = 1;//initiate stop condition
+            while(PEN);
+            
+            lcd_cmd(0x88);
+            bcd_to_ascii(_hr);
+            lcd_data(':');
+            bcd_to_ascii(_min);
+            lcd_data(':');
+            bcd_to_ascii(_sec);
+            
+            lcd_cmd(0xC7)
+            bcd_to_ascii(_date);
+            lcd_data('/');
+            
+            bcd_to_ascii(_month);
+            lcd_data('/');
+            
+            bcd_to_ascii(_yr);
+        }
+        void delay(unsigned int Delay)
+        {
+            while(Delay--);
+        }   
