@@ -1,0 +1,182 @@
+
+/*STEPS
+ 1. #bit use it for address
+ 2.output or input
+ 3. col1 = 1,col2,col3,col4 =0
+      row1,row2,row3 == high
+      row1 == 1 print("1")
+      row2 == 1 print("5")
+      row3 == 1 print ("9")
+  
+  col2 = 1,col1,col3,col4 =0
+      row1,row2,row3 == high
+      row1 == 1 print("2")
+      row2 == 1 print("6")
+      row3 == 1 print ("A") 
+ 
+   col3 = 1,col1,col2,col3 =0
+      row1,row2,row3 == high
+      row1 == 1 print("3")
+      row2 == 1 print("7")
+      row3 == 1 print ("B") 
+ 
+    col4 = 1,col1,col2,col3 =0
+      row1,row2,row3 == high
+      row1 == 1 print("4")
+      row2 == 1 print("8")
+      row3 == 1 print ("C")  
+*/
+ #include <xc.h>
+#define _XTAL_FREQ 20000000
+
+// CONFIG
+#pragma config FOSC = HS        // Oscillator Selection bits (HS oscillator)
+#pragma config WDTE = OFF       // Watchdog Timer Enable bit (WDT disabled)
+#pragma config PWRTE = OFF      // Power-up Timer Enable bit (PWRT disabled)
+#pragma config BOREN = ON       // Brown-out Reset Enable bit (BOR enabled)
+#pragma config LVP = ON         // Low-Voltage (Single-Supply) In-Circuit Serial Programming Enable bit (RB3/PGM pin has PGM function; low-voltage programming enabled)
+#pragma config CPD = OFF        // Data EEPROM Memory Code Protection bit (Data EEPROM code protection off)
+#pragma config WRT = OFF        // Flash Program Memory Write Enable bits (Write protection off; all program memory may be written to by EECON control)
+#pragma config CP = OFF         // Flash Program Memory Code Protection bit (Code protection off)
+
+#define RS PORTCbits.RC1
+#define RW PORTCbits.RC0
+#define EN PORTCbits.RC2
+
+#define C1 PORTBbits.RB1
+#define C2 PORTBbits.RB2
+#define C3 PORTBbits.RB3
+#define C4 PORTBbits.RB4
+#define R1 PORTBbits.RB5
+#define R2 PORTBbits.RB6
+#define R3 PORTBbits.RB7
+
+void lcd_data(unsigned char data)
+{
+    PORTD = data;
+    RS =1;
+    RW = 0;
+    EN = 1;
+    __delay_ms(5);
+    EN = 0;
+}
+
+void lcd_command(unsigned char cmd)
+{
+    PORTD = cmd;
+    RS = 0;
+    RW = 0;
+    EN= 1;
+    __delay_ms(5);
+    EN = 0;
+}
+
+void lcd_string(const unsigned char *str, unsigned char num)
+{
+    unsigned char i;
+    for(i=0;i<num;i++)
+        lcd_data(str[i]);
+}
+
+void lcd_initialise()
+{
+    lcd_command(0x38);//16x2 model
+    lcd_command(0x06);//shift cursor right
+    lcd_command(0x0C);//Display ON, cursor OFF
+    lcd_command(0x01);//clear display screen
+}
+
+void keypad()
+{
+    //First Column
+    C1 = 1;C2 = 0; C3=0; C4= 0;
+    if (R1 == 1)
+    {
+        lcd_data('1');
+        while(R1 == 1);//Debouncing time
+    }
+    if( R2 == 1)
+    {
+        lcd_data('2');
+        while(R2 == 1);//Debouncing time
+    }
+    if( R3 == 1)
+    {
+        lcd_data('3');
+        while(R3 == 1);//Debouncing time
+    }
+    __delay_ms(50);
+
+    //Second Column
+    C1 = 0;C2 = 1; C3=0; C4= 0;
+    if (R1 == 1)
+    {
+        lcd_data('4');
+        while(R1 == 1);//Debouncing time
+    }
+    if( R2 == 1)
+    {
+        lcd_data('5');
+        while(R2 == 1);//Debouncing time
+    }
+    if( R3 == 1)
+    {
+        lcd_data('6');
+        while(R3 == 1);//Debouncing time
+    }
+    __delay_ms(50);
+
+    //Third Column
+    C1 = 0;C2 = 0; C3=1; C4= 0;
+    if (R1 == 1)
+    {
+        lcd_data('7');
+        while(R1 == 1);//Debouncing time
+    }
+    if( R2 == 1)
+    {
+        lcd_data('8');
+        while(R2 == 1);//Debouncing time
+    }
+    if( R3 == 1)
+    {
+        lcd_data('9');
+        while(R3 == 1);//Debouncing time
+    }
+    __delay_ms(50);
+
+    //Fourth Column
+    C1 = 0;C2 = 0; C3=0; C4= 1;
+    if (R1 == 1)
+    {
+        lcd_data('A');
+        while(R1 == 1);//Debouncing time
+    }
+    if( R2 == 1)
+    {
+        lcd_data('B');
+        while(R2 == 1);//Debouncing time
+    }
+    if( R3 == 1)
+    {
+        lcd_data('C');
+        while(R3 == 1);//Debouncing time
+    }
+    __delay_ms(50);
+
+}
+void main(void) {
+    
+    TRISC = 0x00;
+    TRISD = 0x00;
+    TRISB = 0xF0;
+    lcd_initialise();
+    lcd_command(0x80);//first row, first column
+    lcd_string("KEYPAD",6);
+    lcd_command(0xC0);
+    while(1)
+    {
+        keypad();
+    }
+    return;
+}
