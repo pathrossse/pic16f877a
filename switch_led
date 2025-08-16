@@ -1,0 +1,28 @@
+#include <xc.h>
+
+// Configuration bits
+#pragma config FOSC = HS   // External high-speed crystal oscillator
+#pragma config WDTE = OFF  // Watchdog timer disabled
+#pragma config PWRTE = OFF // Power-up timer disabled
+#pragma config BOREN = OFF // Brown-out reset disabled
+#pragma config LVP = OFF   // Low voltage programming mode disabled
+
+#define _XTAL_FREQ 20000000 // 20MHz external crystal frequency
+
+void main(void) {
+    //Set the pins as GPIO
+    TRISB5 = 1; // Set RB5 as input
+    TRISD5 = 0; // Set RD5 as output
+
+    RD5 = 0; // Turn OFF the LED initially
+
+    while (1) {
+        if (RB5 == 1) {
+            RD5 = 1;// Turn ON the LED when switch is ON (RB5 ==1)
+            __delay_ms(20);
+        } else {
+            RD5 = 0; // Turn OFF the LED when switch is OFF (RB5 == 0)
+            __delay_ms(20);
+        }
+    }
+}
