@@ -1,0 +1,45 @@
+#include <xc.h>
+#include <stdio.h>
+
+#define _XTAL_FREQ 20000000
+
+#pragma config FOSC = HS        // Oscillator Selection bits (HS oscillator)
+#pragma config WDTE = OFF       // Watchdog Timer Enable bit (WDT disabled)
+#pragma config PWRTE = OFF      // Power-up Timer Enable bit (PWRT disabled)
+#pragma config BOREN = ON       // Brown-out Reset Enable bit (BOR enabled)
+#pragma config LVP = ON         // Low-Voltage (Single-Supply) In-Circuit Serial Programming Enable bit (RB3/PGM pin has PGM function; low-voltage programming enabled)
+#pragma config CPD = OFF        // Data EEPROM Memory Code Protection bit (Data EEPROM code protection off)
+#pragma config WRT = OFF        // Flash Program Memory Write Enable bits (Write protection off; all program memory may be written to by EECON control)
+#pragma config CP = OFF         // Flash Program Memory Code Protection bit (Code protection off)
+
+
+void SetPWMDutyCycle(unsigned int DutyCycle)
+{
+    CCPR1L = DutyCycle>>2;// Put MSB 8 bits to CCPR1l
+    CCP1CON = CCP1CON & 0xCF;// Make bit4 and 5 zero
+    CCP1CON = CCP1CON | (0x03 & (DutyCycle<<4));//Assign Last 2 LSBs to CCP1CON
+}
+void main(void){
+    
+    TRISC = 0x00;// Make CCP1 pin as output
+    
+    CCP1CON = 0x0C; //Configure CCP1 module in PWM mode
+    
+    PR2 = 0xFF; // Configure the Timer2 period, 19.53 kHz frequency
+    
+    T2CON = 0x04;//timer 2 ON
+    while(1)
+    {
+        for(int i=0;i<1023;i++)
+        {
+            SetPWMDutyCycle(i);
+            __delay_ms(2);
+        }
+        for(int i=1023;i>0;i--)
+        {
+            SetPWMDutyCycle(i);
+            __delay_ms(2);
+        }
+    }
+    return;
+}
